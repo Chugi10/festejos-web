@@ -1,0 +1,53 @@
+# Rehace la copia de la web pública y la publica en GitHub Pages.
+# - Cada 10 minutos mira si la web ha cambiado (firma) y, solo entonces, la rehace.
+# - «web-cambiada»: el aviso que manda la gestión al guardar (repository_dispatch).
+# - A mano: Actions → «Copia de la web» → Run workflow (la rehace siempre).
+name: Copia de la web
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  repository_dispatch:
+    types: [web-cambiada]
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: copia
+  cancel-in-progress: false
+
+jobs:
+  copia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.desplegar.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Hacer la copia
+        id: generar
+        run: node generar.mjs ${{ github.event_name == 'schedule' && '--si-cambia' || '' }}
+        env:
+          ORIGEN: ${{ vars.ORIGEN }}
+          DOMINIO: ${{ vars.DOMINIO }}
+          PRUEBA: ${{ vars.PRUEBA }}
+          COPIA_SECRETO: ${{ secrets.COPIA_SECRETO }}
+      - if: steps.generar.outputs.cambia == 'true'
+        uses: actions/configure-pages@v5
+      - if: steps.generar.outputs.cambia == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - if: steps.generar.outputs.cambia == 'true'
+        id: desplegar
+        uses: actions/deploy-pages@v4
