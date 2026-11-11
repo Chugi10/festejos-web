@@ -133,7 +133,10 @@ async function una(ruta) {
 
 // Por dónde empezar: la portada, el asturiano, el mapa del sitio y lo que leen buscadores e IA.
 // /inicio era la portada en Hostinger: el Worker la manda a /, y aquí queda como redirección.
-for (const r of ['/', '/ast', '/inicio', '/ast/inicio', '/robots.txt', '/sitemap.xml', '/llms.txt', '/llms-full.txt']) poner(r);
+// Y lo que se pide sin enlace: el icono de la pestaña y la clave de IndexNow (pública a propósito: Bing la
+// pide para saber que los avisos de cambios son de verdad nuestros; INDEXNOW_CLAVE en la gestión).
+for (const r of ['/', '/ast', '/inicio', '/ast/inicio', '/robots.txt', '/sitemap.xml', '/llms.txt', '/llms-full.txt',
+  '/favicon.ico', '/0c28b0fab9c7795c148ea69036e4a61a.txt']) poner(r);
 const mapa = await pedir('/sitemap.xml');
 if (mapa.ok) for (const m of (await mapa.clone().text()).matchAll(/<loc>([^<]+)<\/loc>/g)) poner(m[1]);
 
