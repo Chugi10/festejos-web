@@ -51,3 +51,11 @@ jobs:
       - if: steps.generar.outputs.cambia == 'true'
         id: desplegar
         uses: actions/deploy-pages@v4
+      # La gestión apunta qué copia está en GitHub (si se atrasa más de una hora, www vuelve a Cloudflare).
+      - if: steps.generar.outputs.cambia == 'true'
+        name: Avisar a la gestión
+        run: node generar.mjs --avisar
+        env:
+          ORIGEN: ${{ vars.ORIGEN }}
+          DOMINIO: ${{ vars.DOMINIO }}
+          COPIA_SECRETO: ${{ secrets.COPIA_SECRETO }}

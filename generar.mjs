@@ -44,21 +44,31 @@ async function pedir(ruta, intentos = 3) {
   }
 }
 
+// ---------- Avisar a la gestión de que la copia ya está publicada (paso final del flujo) ----------
+// Con esa firma la gestión sabe si la copia está al día; si se atrasa más de una hora, www vuelve a Cloudflare.
+if (process.argv.includes('--avisar')) {
+  const { readFile } = await import('node:fs/promises');
+  const hecha = (await readFile(join(SALIDA, 'copia-firma.txt'), 'utf8')).trim();
+  const r = await fetch(`${ORIGEN}/copia-hecha`, { method: 'POST', headers: { 'x-copia': CLAVE, 'content-type': 'text/plain' }, body: hecha, signal: AbortSignal.timeout(30000) });
+  if (!r.ok) { console.error('La gestión no ha aceptado el aviso:', r.status); process.exit(1); }
+  console.log('Aviso dado:', hecha);
+  process.exit(0);
+}
+
 // ---------- ¿Ha cambiado algo? ----------
-const firma = await (async () => {
+// La gestión da la firma de la web y, en «x-copia-publicada», la de la última copia que avisó.
+const { firma, publicada } = await (async () => {
   const r = await pedir('/copia-firma');
   if (!r.ok) throw new Error(`Sin firma (${r.status}): ¿está bien la clave COPIA_SECRETO?`);
-  return (await r.text()).trim();
+  return { firma: (await r.text()).trim(), publicada: (r.headers.get('x-copia-publicada') || '').trim() };
 })();
 if (process.argv.includes('--si-cambia')) {
-  const publicada = await fetch(`https://${DOMINIO}/copia-firma.txt?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) })
-    .then((r) => (r.ok ? r.text() : '')).catch(() => '');
-  if (publicada.trim() === firma) {
+  if (publicada === firma) {
     console.log('La web no ha cambiado:', firma);
     await salidaGithub('cambia', 'false');
     process.exit(0);
   }
-  console.log('La web ha cambiado:', publicada.trim() || '(sin copia)', '→', firma);
+  console.log('La web ha cambiado:', publicada || '(sin copia)', '→', firma);
 }
 
 // ---------- Recorrer la web ----------
